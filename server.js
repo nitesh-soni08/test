@@ -19,9 +19,13 @@ app.use(limiter);
 app.use(express.json());
 
 // Connect to MongoDB (replace the connection string with your own)
-mongoose.connect('uri', {
+mongoose.connect('mongodb+srv://test:8RY4RNeZ98kZRR2G@learning.oszel.mongodb.net/Testing?retryWrites=true&w=majority', {
     useNewUrlParser: true,
     useUnifiedTopology: true,
+}).then(()=>{
+    console.log("Db connected");
+}).catch((e)=>{
+    console.log("Error :",e);
 });
 
 // Define the Employee schema
@@ -60,91 +64,102 @@ const employeeSchemaJoi = Joi.object({
 });
 
 // API endpoint to save or update an employee
-app.post('/api/employees', (req, res) => {
-    // Validate request data
-    const {
-        error
-    } = employeeSchemaJoi.validate(req.body);
-    if (error) {
-        return res.status(400).json({
-            error: error.details[0].message
-        });
-    }
-
-    const {
-        employee_id,
-        first_name,
-        last_name,
-        email_address,
-        department_id,
-    } = req.body;
-
-    // Save or update the employee in the database
-    Employee.findOneAndUpdate({
-            employee_id
-        }, {
+app.post('/api/employees', async (req, res) => {
+    try {
+        // Validate request data
+        const { error } = employeeSchemaJoi.validate(req.body);
+        if (error) {
+          return res.status(400).json({ error: error.details[0].message });
+        }
+    
+        const {
+          employee_id,
+          first_name,
+          last_name,
+          email_address,
+          department_id,
+        } = req.body;
+    
+        // Save or update the employee in the database
+        let employee = await Employee.findOne({ employee_id });
+    
+        if (!employee) {
+          employee = new Employee({
             employee_id,
             first_name,
             last_name,
             email_address,
             department_id,
-        }, {
-            upsert: true,
-            new: true
-        },
-        (err, employee) => {
-            if (err) {
-                return res.status(500).json({
-                    error: 'Failed to save employee.'
-                });
-            }
-            res.json(employee);
+          });
+        } else {
+          employee.first_name = first_name;
+          employee.last_name = last_name;
+          employee.email_address = email_address;
+          employee.department_id = department_id;
         }
-    );
-});
+    
+        await employee.save();
+    
+        employee = await Employee.findOne({ employee_id }).populate(
+            'department_id',
+            'department_name'
+          );    
+        res.json(employee);
+      } catch (error) {
+        console.log("Error ",error);
 
+        res.status(500).json({ error: 'Failed to save employee.' });
+      }
+    });
 // API endpoint to get all saved employees with department_name
-app.get('/api/employees', (req, res) => {
-    const {
+app.get('/api/employees', async (req, res) => {
+    try {
+      const {
         first_name,
         last_name,
         email_address,
         department
-    } = req.query;
-
-    // Create the query object based on the provided query parameters
-    const query = {};
-    if (first_name) {
+      } = req.query;
+  
+      // Create the query object based on the provided query parameters
+      const query = {};
+      if (first_name) {
         query.first_name = {
-            $regex: new RegExp(first_name, 'i')
+          $regex: new RegExp(first_name, 'i')
         };
-    }
-    if (last_name) {
+      }
+      if (last_name) {
         query.last_name = {
-            $regex: new RegExp(last_name, 'i')
+          $regex: new RegExp(last_name, 'i')
         };
-    }
-    if (email_address) {
+      }
+      if (email_address) {
         query.email_address = {
-            $regex: new RegExp(email_address, 'i')
+          $regex: new RegExp(email_address, 'i')
         };
-    }
-    if (department) {
+      }
+      if (department) {
         query.department_id = department;
-    }
+      }
 
-    // Perform the query to get the employees with department_name
-    Employee.find(query)
+      // Check if the query object is empty
+    if (Object.keys(query).length === 0) {
+        return res.status(400).json({ error: 'Please provide valid query parameters.' });
+      }
+  
+      // Perform the query to get the employees with department_name
+      const employees = await Employee.findOne(query)
         .populate('department_id', 'department_name')
-        .exec((err, employees) => {
-            if (err) {
-                return res.status(500).json({
-                    error: 'Failed to fetch employees.'
-                });
-            }
-            res.json(employees);
-        });
-});
+        .exec();
+  
+      res.json(employees);
+    } catch (error) {
+      console.log("Error: ", error);
+      res.status(500).json({
+        error: 'Failed to fetch employees.'
+      });
+    }
+  });
 
 // Start the server
 app.listen(3000, () => {
