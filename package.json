@@ -13,7 +13,10 @@
     "body-parser": "^1.20.2",
     "cors": "^2.8.5",
     "express": "^4.18.2",
+    "express-rate-limit": "^6.7.0",
+    "joi": "^17.9.2",
     "mongodb": "^5.6.0",
+    "mongoose": "^7.2.2",
     "nodemon": "^2.0.22"
   }
 }
