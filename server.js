@@ -3,6 +3,8 @@ const mongoose = require('mongoose');
 const rateLimit = require('express-rate-limit');
 const Joi = require('joi');
 
+require('dotenv').config();
+
 // Create an Express application
 const app = express();
 
@@ -19,7 +21,7 @@ app.use(limiter);
 app.use(express.json());
 
 // Connect to MongoDB (replace the connection string with your own)
-mongoose.connect('mongodb+srv://test:8RY4RNeZ98kZRR2G@learning.oszel.mongodb.net/Testing?retryWrites=true&w=majority', {
+mongoose.connect(process.env.MONGODB_SERVICE_URL, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
 }).then(()=>{
